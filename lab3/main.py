@@ -3,9 +3,6 @@ import csv
 import numpy as np
 import matplotlib.pyplot as plt
 
-# ==========================================
-# Частина 1: lab_3.1 (Генерація даних)
-# ==========================================
 def f_lab3(x):
     return math.sin(x)
 
@@ -21,9 +18,6 @@ def run_lab_3_1():
             y = f_lab3(x)
             file1.write(f"{x:e} \t {y:e}\n")
 
-# ==========================================
-# Частина 2: lab_3.2 (Апроксимація)
-# ==========================================
 x_arr = [0.0] * 100
 f_arr = [0.0] * 100
 
@@ -91,9 +85,6 @@ def run_lab_3_2():
             file3.write(f"{current_x:e} \t {Eps(appr_val, real_val):e}\n")
             t += nt
 
-# ==========================================
-# Частина 3: main.py (Метод найменших квадратів)
-# ==========================================
 def form_matrix(x, m):
     matrix = np.zeros((m + 1, m + 1))
     for i in range(m + 1):
@@ -118,6 +109,7 @@ def gauss_solve(A, b):
         b[[k, max_row]] = b[[max_row, k]]
         
         for i in range(k + 1, n):
+            if A[k, k] == 0: continue
             factor = A[i, k] / A[k, k]
             A[i, k:] -= factor * A[k, k:]
             b[i] -= factor * b[k]
@@ -153,6 +145,9 @@ def run_main():
 
     variances = []
     degrees = list(range(1, 11))
+    
+    all_y_approx = {}
+    all_errors = {}
 
     for m in degrees:
         A = form_matrix(x_data, m)
@@ -161,6 +156,8 @@ def run_main():
         y_approx = polynomial(x_data, coef)
         var = variance(y_data, y_approx)
         variances.append(var)
+        all_y_approx[m] = y_approx
+        all_errors[m] = np.array(y_data) - y_approx
 
     optimal_m = degrees[np.argmin(variances)]
     print(f"Дисперсії для m=1..10: {variances}")
@@ -169,31 +166,49 @@ def run_main():
     A_opt = form_matrix(x_data, optimal_m)
     b_opt = form_vector(x_data, y_data, optimal_m)
     coef_opt = gauss_solve(A_opt, b_opt)
-    y_approx_opt = polynomial(x_data, coef_opt)
+    
+    
+    x0 = min(x_data) if x_data else 0
+    xn = max(x_data) if x_data else 1
+    n_points = len(x_data)
+    h1 = (xn - x0) / (20 * n_points) if n_points > 0 else 0.1
+    x_dense = np.arange(x0, xn + h1, h1)
+    y_dense_opt = polynomial(x_dense, coef_opt)
 
     x_future = [25, 26, 27]
     y_future = polynomial(x_future, coef_opt)
     print(f"Прогноз на місяці 25, 26, 27: {y_future}")
 
-    error_y = np.array(y_data) - y_approx_opt
+    plt.figure(figsize=(14, 10))
 
-    plt.figure(figsize=(12, 8))
 
-    plt.subplot(2, 1, 1)
+    plt.subplot(2, 2, 1)
     plt.scatter(x_data, y_data, color='red', label='Фактичні дані')
-    plt.plot(x_data, y_approx_opt, label=f'Апроксимація (m={optimal_m})')
+    plt.plot(x_dense, y_dense_opt, label=f'Апроксимація (m={optimal_m})')
     plt.plot(x_future, y_future, 'go--', label='Прогноз')
     plt.legend()
     plt.title('Температура: Дані та Апроксимація')
 
-    plt.subplot(2, 2, 3)
+
+    plt.subplot(2, 2, 2)
     plt.plot(degrees, variances, 'bo-')
     plt.title('Залежність дисперсії від ступеня m')
     plt.xlabel('m')
+    plt.ylabel('Дисперсія')
+
+
+    plt.subplot(2, 2, 3)
+    for m in degrees:
+        plt.plot(x_data, all_errors[m], label=f'm={m}')
+    plt.title('Похибки для m=1..10')
+    plt.xlabel('Місяць')
+    plt.ylabel('Похибка')
+    plt.legend(fontsize=8)
+
 
     plt.subplot(2, 2, 4)
-    plt.bar(x_data, error_y)
-    plt.title('Похибка апроксимації')
+    plt.bar(x_data, all_errors[optimal_m])
+    plt.title(f'Похибка апроксимації (m={optimal_m})')
 
     plt.tight_layout()
     plt.show()
